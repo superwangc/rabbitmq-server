@@ -51,7 +51,7 @@ jobs:
         run: |
           make test-build base_rmq_ref=master current_rmq_ref=${{ steps.ref.outputs.branch_or_tag_name }}
       - name: CLONE SECONDARY UMBRELLA
-        if: 'oldest' == 'oldest'
+        #if: 'oldest' == 'oldest'
         uses: actions/checkout@v2
         with:
           repository: rabbitmq/rabbitmq-public-umbrella
