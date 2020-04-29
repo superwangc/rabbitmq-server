@@ -62,8 +62,9 @@ jobs:
           # TODO: Determine the right list of release branches to have
           # for this master.
           set -x
+          git config advice.detachedHead false
           make -C umbrellas/master co # To get RabbitMQ components.
-          make -C umbrellas/master clean -j16 # To remove third-party deps.
+          make -C umbrellas/master clean-3rd-party-repos # To remove third-party deps.
           for branch in v3.8.x v3.7.x; do
             if test 'master' = "$branch"; then
               # When testing on the same release branch, we use the oldest
@@ -151,13 +152,11 @@ jobs:
         if: success() && 'latest' == 'oldest'
         run: |
           set -x
-          ls
-          ls umbrellas
-          ls umbrellas/v3.8.x
           branch_or_tag_name=${GITHUB_REF#refs/*/}
           test -d umbrellas/v3.8.x
           make distclean-ct ct-cluster base_rmq_ref=master current_rmq_ref=$branch_or_tag_name FULL= \
           SECONDARY_UMBRELLA=$PWD/umbrellas/v3.8.x RABBITMQ_FEATURE_FLAGS=
+          grep -R -i start-background-broker logs
       - name: RUN TESTS [mixed with v3.7.x]
         if: success() && 'latest' == 'oldest'
         run: |
