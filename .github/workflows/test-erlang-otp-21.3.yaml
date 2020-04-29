@@ -77,12 +77,14 @@ jobs:
                 grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | tail -n 1)
             fi
             test "$version"
-            umbrella="umbrellas/$version"
+            umbrella="umbrellas/$branch"
             # We copy the master Umbrella and checkout the appropriate tag.
             cp -a umbrellas/master "$umbrella"
             git -C "$umbrella" checkout "master"
             make -C "$umbrella" up BRANCH="$version"
+            rm -fr "$umbrella"/deps/*/{.git,test} "$umbrella"/.git
           done
+          rm -fr umbrellas/master/deps/*/{.git,test} umbrellas/master/.git
       - name: CACHE SECONDARY UMBRELLAS
         if: success() && 'oldest' == 'oldest'
         uses: actions/cache@v1
@@ -148,6 +150,10 @@ jobs:
       - name: RUN TESTS [mixed with v3.8.x]
         if: success() && 'oldest' == 'oldest'
         run: |
+          set -x
+          ls
+          ls umbrellas
+          ls umbrellas/v3.8.x
           branch_or_tag_name=${GITHUB_REF#refs/*/}
           test -d umbrellas/v3.8.x
           make distclean-ct ct-cluster base_rmq_ref=master current_rmq_ref=$branch_or_tag_name FULL= \
@@ -155,6 +161,7 @@ jobs:
       - name: RUN TESTS [mixed with v3.7.x]
         if: success() && 'oldest' == 'oldest'
         run: |
+          set -x
           branch_or_tag_name=${GITHUB_REF#refs/*/}
           test -d umbrellas/v3.7.x
           make distclean-ct ct-cluster base_rmq_ref=master current_rmq_ref=$branch_or_tag_name FULL= \
