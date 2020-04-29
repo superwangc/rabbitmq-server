@@ -51,13 +51,13 @@ jobs:
         run: |
           make test-build base_rmq_ref=master current_rmq_ref=${{ steps.ref.outputs.branch_or_tag_name }}
       - name: CLONE SECONDARY UMBRELLA
-        if: 'oldest' = 'oldest'
+        if: 'oldest' == 'oldest'
         uses: actions/checkout@v2
           with:
             repository: rabbitmq/rabbitmq-public-umbrella
             path: umbrellas/master
       - name: PREPARE SECONDARY UMBRELLA COPIES
-        if: 'oldest' = 'oldest'
+        if: 'oldest' == 'oldest'
         run: |
           make -C umbrellas/master fetch-deps
           # TODO: Determine the right list of release branches to have
@@ -81,7 +81,7 @@ jobs:
             make -C "$umbrella" up BRANCH="$version"
           done
       - name: CACHE SECONDARY UMBRELLAS
-        if: 'oldest' = 'oldest'
+        if: 'oldest' == 'oldest'
         uses: actions/cache@v1
         with:
           path: umbrellas
