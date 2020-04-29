@@ -53,9 +53,9 @@ jobs:
       - name: CLONE SECONDARY UMBRELLA
         if: 'oldest' == 'oldest'
         uses: actions/checkout@v2
-          with:
-            repository: rabbitmq/rabbitmq-public-umbrella
-            path: umbrellas/master
+        with:
+          repository: rabbitmq/rabbitmq-public-umbrella
+          path: umbrellas/master
       - name: PREPARE SECONDARY UMBRELLA COPIES
         if: 'oldest' == 'oldest'
         run: |
