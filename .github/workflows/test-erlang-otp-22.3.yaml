@@ -50,6 +50,42 @@ jobs:
       - name: COMPILE FOR TEST
         run: |
           make test-build base_rmq_ref=master current_rmq_ref=${{ steps.ref.outputs.branch_or_tag_name }}
+      - name: CLONE SECONDARY UMBRELLA
+        if: 'latest' = 'oldest'
+        uses: actions/checkout@v2
+          with:
+            repository: rabbitmq/rabbitmq-public-umbrella
+            path: umbrellas/master
+      - name: PREPARE SECONDARY UMBRELLA COPIES
+        if: 'latest' = 'oldest'
+        run: |
+          make -C umbrellas/master fetch-deps
+          # TODO: Determine the right list of release branches to have
+          # for this master.
+          for branch in v3.8.x v3.7.x; do
+            if test 'master' = "$branch"; then
+              # When testing on the same release branch, we use the oldest
+              # tag.
+              version=$(git -C umbrellas/master/deps/rabbit tag -l $(echo ${branch%.x}).* | \
+                grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)
+            else
+              # When testing against an older release branch, we use the
+              # latest tag.
+              version=$(git -C umbrellas/master/deps/rabbit tag -l $(echo ${branch%.x}).* | \
+                grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | tail -n 1)
+            fi
+            test "$version"
+            umbrella="umbrella/$version"
+            # We copy the master Umbrella and checkout the appropriate tag.
+            cp -a umbrellas/master "$umbrella"
+            make -C "$umbrella" up BRANCH="$version"
+          done
+      - name: CACHE SECONDARY UMBRELLAS
+        if: 'latest' = 'oldest'
+        uses: actions/cache@v1
+        with:
+          path: umbrellas
+          key: git-${{ github.sha }}_secondary_umbrellas
   eunit:
     needs: [checks]
     # https://help.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#contexts
