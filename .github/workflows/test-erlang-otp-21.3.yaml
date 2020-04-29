@@ -51,17 +51,17 @@ jobs:
         run: |
           make test-build base_rmq_ref=master current_rmq_ref=${{ steps.ref.outputs.branch_or_tag_name }}
       - name: CLONE SECONDARY UMBRELLA
-        if: "'oldest' == 'oldest'"
+        if: success() && 'oldest' == 'oldest'
         uses: actions/checkout@v2
         with:
           repository: rabbitmq/rabbitmq-public-umbrella
           path: umbrellas/master
       - name: PREPARE SECONDARY UMBRELLA COPIES
-        if: "'oldest' == 'oldest'"
+        if: success() && 'oldest' == 'oldest'
         run: |
           # TODO: Determine the right list of release branches to have
           # for this master.
-          branch_or_tag_name=${GITHUB_REF#refs/*/}
+          set -x
           for branch in v3.8.x v3.7.x; do
             if test 'master' = "$branch"; then
               # When testing on the same release branch, we use the oldest
@@ -78,10 +78,11 @@ jobs:
             umbrella="umbrellas/$version"
             # We copy the master Umbrella and checkout the appropriate tag.
             cp -a umbrellas/master "$umbrella"
-            make -C "$umbrella" co BRANCH="$version" base_rmq_ref=master current_rmq_ref=$branch_or_tag_name
+            git -C "$umbrella" checkout "master"
+            make -C "$umbrella" up BRANCH="$version"
           done
       - name: CACHE SECONDARY UMBRELLAS
-        if: "'oldest' == 'oldest'"
+        if: success() && 'oldest' == 'oldest'
         uses: actions/cache@v1
         with:
           path: umbrellas
@@ -136,14 +137,20 @@ jobs:
           branch_or_tag_name=${GITHUB_REF#refs/*/}
           ! test -d ebin || touch ebin/*
           make ct-cluster base_rmq_ref=master current_rmq_ref=$branch_or_tag_name FULL=
+      - name: CACHE SECONDARY UMBRELLAS
+        if: success() && 'oldest' == 'oldest'
+        uses: actions/cache@v1
+        with:
+          path: umbrellas
+          key: git-${{ github.sha }}_secondary_umbrellas
       - name: RUN TESTS [mixed with v3.8.x]
-        if: success()
+        if: success() && 'oldest' == 'oldest'
         run: |
           branch_or_tag_name=${GITHUB_REF#refs/*/}
           make distclean-ct ct-cluster base_rmq_ref=master current_rmq_ref=$branch_or_tag_name FULL= \
           SECONDARY_UMBRELLA=$PWD/umbrellas/v3.8.x RABBITMQ_FEATURE_FLAGS=
       - name: RUN TESTS [mixed with v3.7.x]
-        if: success()
+        if: success() && 'oldest' == 'oldest'
         run: |
           branch_or_tag_name=${GITHUB_REF#refs/*/}
           make distclean-ct ct-cluster base_rmq_ref=master current_rmq_ref=$branch_or_tag_name FULL= \
