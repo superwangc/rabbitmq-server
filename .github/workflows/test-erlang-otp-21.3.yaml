@@ -62,7 +62,7 @@ jobs:
           # TODO: Determine the right list of release branches to have
           # for this master.
           set -x
-          git config advice.detachedHead false
+          git config --global advice.detachedHead false
           make -C umbrellas/master co # To get RabbitMQ components.
           make -C umbrellas/master clean-3rd-party-repos # To remove third-party deps.
           for branch in v3.8.x v3.7.x; do
