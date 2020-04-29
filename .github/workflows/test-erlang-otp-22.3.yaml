@@ -59,7 +59,6 @@ jobs:
       - name: PREPARE SECONDARY UMBRELLA COPIES
         if: "'latest' == 'oldest'"
         run: |
-          make -C umbrellas/master fetch-deps
           # TODO: Determine the right list of release branches to have
           # for this master.
           for branch in v3.8.x v3.7.x; do
@@ -78,7 +77,7 @@ jobs:
             umbrella="umbrellas/$version"
             # We copy the master Umbrella and checkout the appropriate tag.
             cp -a umbrellas/master "$umbrella"
-            make -C "$umbrella" up BRANCH="$version"
+            make -C "$umbrella" co BRANCH="$version"
           done
       - name: CACHE SECONDARY UMBRELLAS
         if: "'latest' == 'oldest'"
@@ -111,9 +110,58 @@ jobs:
           ! test -d ebin || touch ebin/*
           branch_or_tag_name=${GITHUB_REF#refs/*/}
           make eunit base_rmq_ref=master current_rmq_ref=$branch_or_tag_name FULL=
+  ct-cluster:
+    needs: [checks]
+    # https://help.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#contexts
+    name: ct-cluster
+    runs-on: ubuntu-18.04
+    steps:
+      - name: CHECKOUT REPOSITORY
+        uses: actions/checkout@v2
+      # https://github.com/marketplace/actions/setup-elixir
+      - name: CONFIGURE OTP & ELIXIR
+        uses: actions/setup-elixir@v1
+        with:
+          otp-version: 22.3
+          # https://github.com/elixir-lang/elixir/releases
+          elixir-version: 1.8.0
+      - name: CACHE DEPS
+        uses: actions/cache@v1
+        with:
+          path: deps
+          key: otp-22.3_git-${{ github.sha }}_deps
+      - name: RUN TESTS
+        run: |
+          branch_or_tag_name=${GITHUB_REF#refs/*/}
+          ! test -d ebin || touch ebin/*
+          make ct-cluster base_rmq_ref=master current_rmq_ref=$branch_or_tag_name FULL=
+      - name: RUN TESTS [mixed with v3.8.x]
+        if: success()
+        run: |
+          branch_or_tag_name=${GITHUB_REF#refs/*/}
+          make distclean-ct ct-cluster base_rmq_ref=master current_rmq_ref=$branch_or_tag_name FULL= \
+          SECONDARY_UMBRELLA=$PWD/umbrellas/v3.8.x RABBITMQ_FEATURE_FLAGS=
+      - name: RUN TESTS [mixed with v3.7.x]
+        if: success()
+        run: |
+          branch_or_tag_name=${GITHUB_REF#refs/*/}
+          make distclean-ct ct-cluster base_rmq_ref=master current_rmq_ref=$branch_or_tag_name FULL= \
+          SECONDARY_UMBRELLA=$PWD/umbrellas/v3.7.x RABBITMQ_FEATURE_FLAGS=
+      - name: ON FAILURE ARCHIVE TESTS LOGS
+        if: failure()
+        run: |
+          make ct-logs-archive
+      - name: ON FAILURE UPLOAD TESTS LOGS ARTIFACT
+        # https://github.com/marketplace/actions/upload-artifact
+        uses: actions/upload-artifact@v2-preview
+        if: failure()
+        with:
+          name: ct-cluster-logs
+          path: "*-ct-logs-*.tar.xz"
   capture-tested-deps-versions:
     needs:
       - eunit
+      - ct-cluster
     runs-on: ubuntu-18.04
     steps:
       - name: CHECKOUT REPOSITORY
