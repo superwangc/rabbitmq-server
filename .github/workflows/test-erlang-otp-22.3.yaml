@@ -61,6 +61,7 @@ jobs:
         run: |
           # TODO: Determine the right list of release branches to have
           # for this master.
+          branch_or_tag_name=${GITHUB_REF#refs/*/}
           for branch in v3.8.x v3.7.x; do
             if test 'master' = "$branch"; then
               # When testing on the same release branch, we use the oldest
@@ -77,7 +78,7 @@ jobs:
             umbrella="umbrellas/$version"
             # We copy the master Umbrella and checkout the appropriate tag.
             cp -a umbrellas/master "$umbrella"
-            make -C "$umbrella" co BRANCH="$version"
+            make -C "$umbrella" co BRANCH="$version" base_rmq_ref=master current_rmq_ref=$branch_or_tag_name
           done
       - name: CACHE SECONDARY UMBRELLAS
         if: "'latest' == 'oldest'"
