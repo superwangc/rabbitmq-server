@@ -62,16 +62,18 @@ jobs:
           # TODO: Determine the right list of release branches to have
           # for this master.
           set -x
+          make -C umbrellas/master co # To get RabbitMQ components.
+          make -C umbrellas/master clean -j16 # To remove third-party deps.
           for branch in v3.8.x v3.7.x; do
             if test 'master' = "$branch"; then
               # When testing on the same release branch, we use the oldest
               # tag.
-              version=$(git tag -l $(echo ${branch%.x}).* | \
+              version=$(git -C umbrellas/master/deps/rabbit tag -l $(echo ${branch%.x}).* | \
                 grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)
             else
               # When testing against an older release branch, we use the
               # latest tag.
-              version=$(git tag -l $(echo ${branch%.x}).* | \
+              version=$(git -C umbrellas/master/deps/rabbit tag -l $(echo ${branch%.x}).* | \
                 grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | tail -n 1)
             fi
             test "$version"
@@ -147,12 +149,14 @@ jobs:
         if: success() && 'oldest' == 'oldest'
         run: |
           branch_or_tag_name=${GITHUB_REF#refs/*/}
+          test -d umbrellas/v3.8.x
           make distclean-ct ct-cluster base_rmq_ref=master current_rmq_ref=$branch_or_tag_name FULL= \
           SECONDARY_UMBRELLA=$PWD/umbrellas/v3.8.x RABBITMQ_FEATURE_FLAGS=
       - name: RUN TESTS [mixed with v3.7.x]
         if: success() && 'oldest' == 'oldest'
         run: |
           branch_or_tag_name=${GITHUB_REF#refs/*/}
+          test -d umbrellas/v3.7.x
           make distclean-ct ct-cluster base_rmq_ref=master current_rmq_ref=$branch_or_tag_name FULL= \
           SECONDARY_UMBRELLA=$PWD/umbrellas/v3.7.x RABBITMQ_FEATURE_FLAGS=
       - name: ON FAILURE ARCHIVE TESTS LOGS
