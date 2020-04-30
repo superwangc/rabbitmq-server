@@ -194,13 +194,13 @@ jobs:
             SECONDARY_UMBRELLA=$PWD/umbrellas/v3.7.x \
             RABBITMQ_FEATURE_FLAGS=
       - name: ON FAILURE ARCHIVE TESTS LOGS
-        # XXX if: failure()
+        if: failure()
         run: |
           make ct-logs-archive
       - name: ON FAILURE UPLOAD TESTS LOGS ARTIFACT
         # https://github.com/marketplace/actions/upload-artifact
         uses: actions/upload-artifact@v2-preview
-        # XXX if: failure()
+        if: failure()
         with:
           name: ct-cluster-logs
           path: "*-ct-logs-*.tar.xz"
