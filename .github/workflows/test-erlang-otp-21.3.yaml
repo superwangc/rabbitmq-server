@@ -66,20 +66,8 @@ jobs:
           set -x
           git config --global advice.detachedHead false
           make -C umbrellas/master co # To get RabbitMQ components.
-          for branch in v3.8.x v3.7.x; do
-            if test 'master' = "$branch"; then
-              # When testing on the same release branch, we use the oldest
-              # tag.
-              version=$(git -C umbrellas/master/deps/rabbit tag -l --sort=version:refname $(echo ${branch%.x}).* | \
-                grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)
-            else
-              # When testing against an older release branch, we use the
-              # latest tag.
-              version=$(git -C umbrellas/master/deps/rabbit tag -l --sort=version:refname $(echo ${branch%.x}).* | \
-                grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | tail -n 1)
-            fi
-            test "$version"
-            umbrella="umbrellas/$branch"
+          for version in $(MIXED_VERSION_TESTING_WITH); do
+            umbrella="umbrellas/$version"
             # We copy the master Umbrella and checkout the appropriate tag.
             cp -a umbrellas/master "$umbrella"
             git -C "$umbrella" checkout "master"
@@ -92,7 +80,7 @@ jobs:
             make -C "$umbrella" up
             rm -fr "$umbrella"/deps/*/{.git,test} "$umbrella"/.git
           done
-          rm -fr umbrellas/master/deps/*/{.git,test} umbrellas/master/.git
+          rm -fr umbrellas/master
       - name: CACHE SECONDARY UMBRELLAS
         if: success() && 'oldest' == 'oldest'
         uses: actions/cache@v1
@@ -165,34 +153,22 @@ jobs:
         with:
           path: umbrellas
           key: git-${{ github.sha }}_secondary_umbrellas
-      - name: RUN TESTS [mixed with v3.8.x]
+      - name: RUN TESTS [mixed-versions]
         if: success() && 'oldest' == 'oldest'
         run: |
           set -x
           branch_or_tag_name=${GITHUB_REF#refs/*/}
-          test -d umbrellas/v3.8.x
-          make distclean-ct ct-cluster \
-            base_rmq_ref=master \
-            current_rmq_ref=$branch_or_tag_name \
-            FULL= \
-            CONCOURSE=1 \
-            SECONDARY_UMBRELLA=$PWD/umbrellas/v3.8.x \
-            RABBITMQ_FEATURE_FLAGS=
-          grep -R -i start-background-broker logs
-      - name: RUN TESTS [mixed with v3.7.x]
-        if: success() && 'oldest' == 'oldest'
-        run: |
-          set -x
-          branch_or_tag_name=${GITHUB_REF#refs/*/}
-          test -d umbrellas/v3.7.x
-          # FIXME: a skipped test should cause a failure
-          make distclean-ct ct-cluster \
-            base_rmq_ref=master \
-            current_rmq_ref=$branch_or_tag_name \
-            FULL= \
-            CONCOURSE=1 \
-            SECONDARY_UMBRELLA=$PWD/umbrellas/v3.7.x \
-            RABBITMQ_FEATURE_FLAGS=
+          for umbrella in umbrellas/*; do
+            test -d $umbrella
+            echo "Mixing clusters with RabbitMQ $(basename "$umbrella")"
+            make distclean-ct ct-cluster \
+              base_rmq_ref=master \
+              current_rmq_ref=$branch_or_tag_name \
+              FULL= \
+              CONCOURSE=1 \
+              SECONDARY_UMBRELLA=$PWD/$umbrella \
+              RABBITMQ_FEATURE_FLAGS=
+          done
       - name: ON FAILURE ARCHIVE TESTS LOGS
         if: failure()
         run: |
