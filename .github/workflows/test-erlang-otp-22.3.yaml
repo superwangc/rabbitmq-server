@@ -160,7 +160,8 @@ jobs:
           branch_or_tag_name=${GITHUB_REF#refs/*/}
           for umbrella in umbrellas/*; do
             test -d $umbrella
-            echo "Mixing clusters with RabbitMQ $(basename "$umbrella")"
+            printf '\n\033[1;32mMixing clusters with RabbitMQ %s\033[0m' \
+              $(basename "$umbrella")
             make distclean-ct ct-cluster \
               base_rmq_ref=master \
               current_rmq_ref=$branch_or_tag_name \
