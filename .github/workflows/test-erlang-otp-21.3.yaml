@@ -3099,6 +3099,42 @@ jobs:
         with:
           name: ct-unit_supervisor2-logs
           path: "*-ct-logs-*.tar.xz"
+  ct-unit_transducers:
+    needs: [checks]
+    # https://help.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#contexts
+    name: ct-unit_transducers
+    runs-on: ubuntu-18.04
+    steps:
+      - name: CHECKOUT REPOSITORY
+        uses: actions/checkout@v2
+      # https://github.com/marketplace/actions/setup-elixir
+      - name: CONFIGURE OTP & ELIXIR
+        uses: actions/setup-elixir@v1
+        with:
+          otp-version: 21.3
+          # https://github.com/elixir-lang/elixir/releases
+          elixir-version: 1.8.0
+      - name: CACHE DEPS
+        uses: actions/cache@v1
+        with:
+          path: deps
+          key: otp-21.3_git-${{ github.sha }}_deps
+      - name: RUN TESTS
+        run: |
+          branch_or_tag_name=${GITHUB_REF#refs/*/}
+          ! test -d ebin || touch ebin/*
+          make ct-unit_transducers base_rmq_ref=master current_rmq_ref=$branch_or_tag_name FULL=
+      - name: ON FAILURE ARCHIVE TESTS LOGS
+        if: failure()
+        run: |
+          make ct-logs-archive
+      - name: ON FAILURE UPLOAD TESTS LOGS ARTIFACT
+        # https://github.com/marketplace/actions/upload-artifact
+        uses: actions/upload-artifact@v2-preview
+        if: failure()
+        with:
+          name: ct-unit_transducers-logs
+          path: "*-ct-logs-*.tar.xz"
   ct-unit_vm_memory_monitor:
     needs: [checks]
     # https://help.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#contexts
@@ -3294,6 +3330,7 @@ jobs:
       - ct-unit_queue_consumers
       - ct-unit_stats_and_metrics
       - ct-unit_supervisor2
+      - ct-unit_transducers
       - ct-unit_vm_memory_monitor
       - ct-upgrade_preparation
       - ct-vhost
