@@ -1,7 +1,9 @@
+# vim:sw=2:et:
 # https://help.github.com/en/actions/configuring-and-managing-workflows/configuring-a-workflow
 name: "Test: Erlang/OTP v21.3"
 on: push
 jobs:
+  # vim:sw=2:et:
   checks:
     name: checks
     runs-on: ubuntu-18.04
@@ -64,7 +66,6 @@ jobs:
           set -x
           git config --global advice.detachedHead false
           make -C umbrellas/master co # To get RabbitMQ components.
-          make -C umbrellas/master clean-3rd-party-repos # To remove third-party deps.
           for branch in v3.8.x v3.7.x; do
             if test 'master' = "$branch"; then
               # When testing on the same release branch, we use the oldest
@@ -83,6 +84,12 @@ jobs:
             cp -a umbrellas/master "$umbrella"
             git -C "$umbrella" checkout "master"
             make -C "$umbrella" up BRANCH="$version"
+            # To remove third-party deps which were checked out when the
+            # projects were on the `master` branch. Thus, possibly not the
+            # version pinning we expect. We update the Umbrella one last time
+            # to fetch the correct third-party deps.
+            make -C "$umbrella" clean-3rd-party-repos
+            make -C "$umbrella" up
             rm -fr "$umbrella"/deps/*/{.git,test} "$umbrella"/.git
           done
           rm -fr umbrellas/master/deps/*/{.git,test} umbrellas/master/.git
@@ -92,6 +99,7 @@ jobs:
         with:
           path: umbrellas
           key: git-${{ github.sha }}_secondary_umbrellas
+  # vim:sw=2:et:
   eunit:
     needs: [checks]
     # https://help.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#contexts
@@ -116,7 +124,12 @@ jobs:
         run: |
           ! test -d ebin || touch ebin/*
           branch_or_tag_name=${GITHUB_REF#refs/*/}
-          make eunit base_rmq_ref=master current_rmq_ref=$branch_or_tag_name FULL=
+          make eunit \
+            base_rmq_ref=master \
+            current_rmq_ref=$branch_or_tag_name \
+            FULL= \
+            CONCOURSE=1
+  # vim:sw=2:et:
   ct-cluster:
     needs: [checks]
     # https://help.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#contexts
@@ -141,7 +154,11 @@ jobs:
         run: |
           branch_or_tag_name=${GITHUB_REF#refs/*/}
           ! test -d ebin || touch ebin/*
-          make ct-cluster base_rmq_ref=master current_rmq_ref=$branch_or_tag_name FULL=
+          make ct-cluster \
+            base_rmq_ref=master \
+            current_rmq_ref=$branch_or_tag_name \
+            FULL= \
+            CONCOURSE=1
       - name: CACHE SECONDARY UMBRELLAS
         if: success() && 'oldest' == 'oldest'
         uses: actions/cache@v1
@@ -154,8 +171,13 @@ jobs:
           set -x
           branch_or_tag_name=${GITHUB_REF#refs/*/}
           test -d umbrellas/v3.8.x
-          make distclean-ct ct-cluster base_rmq_ref=master current_rmq_ref=$branch_or_tag_name FULL= \
-          SECONDARY_UMBRELLA=$PWD/umbrellas/v3.8.x RABBITMQ_FEATURE_FLAGS=
+          make distclean-ct ct-cluster \
+            base_rmq_ref=master \
+            current_rmq_ref=$branch_or_tag_name \
+            FULL= \
+            CONCOURSE=1 \
+            SECONDARY_UMBRELLA=$PWD/umbrellas/v3.8.x \
+            RABBITMQ_FEATURE_FLAGS=
           grep -R -i start-background-broker logs
       - name: RUN TESTS [mixed with v3.7.x]
         if: success() && 'oldest' == 'oldest'
@@ -163,19 +185,26 @@ jobs:
           set -x
           branch_or_tag_name=${GITHUB_REF#refs/*/}
           test -d umbrellas/v3.7.x
-          make distclean-ct ct-cluster base_rmq_ref=master current_rmq_ref=$branch_or_tag_name FULL= \
-          SECONDARY_UMBRELLA=$PWD/umbrellas/v3.7.x RABBITMQ_FEATURE_FLAGS=
+          # FIXME: a skipped test should cause a failure
+          make distclean-ct ct-cluster \
+            base_rmq_ref=master \
+            current_rmq_ref=$branch_or_tag_name \
+            FULL= \
+            CONCOURSE=1 \
+            SECONDARY_UMBRELLA=$PWD/umbrellas/v3.7.x \
+            RABBITMQ_FEATURE_FLAGS=
       - name: ON FAILURE ARCHIVE TESTS LOGS
-        if: failure()
+        # XXX if: failure()
         run: |
           make ct-logs-archive
       - name: ON FAILURE UPLOAD TESTS LOGS ARTIFACT
         # https://github.com/marketplace/actions/upload-artifact
         uses: actions/upload-artifact@v2-preview
-        if: failure()
+        # XXX if: failure()
         with:
           name: ct-cluster-logs
           path: "*-ct-logs-*.tar.xz"
+  # vim:sw=2:et:
   capture-tested-deps-versions:
     needs:
       - eunit
