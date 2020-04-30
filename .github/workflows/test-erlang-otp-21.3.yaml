@@ -23,10 +23,10 @@ jobs:
         run: |
           branch_or_tag_name=${GITHUB_REF#refs/*/}
           echo "::set-output name=branch_or_tag_name::$branch_or_tag_name"
-          make check-rabbitmq-components.mk base_rmq_ref=v3.8.x current_rmq_ref=$branch_or_tag_name
+          make check-rabbitmq-components.mk base_rmq_ref=master current_rmq_ref=$branch_or_tag_name
       - name: CHECK SCRIPTS
         run: |
-          make bats base_rmq_ref=v3.8.x current_rmq_ref=${{ steps.ref.outputs.branch_or_tag_name }}
+          make bats base_rmq_ref=master current_rmq_ref=${{ steps.ref.outputs.branch_or_tag_name }}
       # https://help.github.com/en/actions/configuring-and-managing-workflows/caching-dependencies-to-speed-up-workflows
       - name: CACHE DEPS
         uses: actions/cache@v1
@@ -35,7 +35,7 @@ jobs:
           key: otp-21.3_git-${{ github.sha }}_deps
       - name: RESOLVE & COMPILE DEPS
         run: |
-          make deps test-deps base_rmq_ref=v3.8.x current_rmq_ref=${{ steps.ref.outputs.branch_or_tag_name }}
+          make deps test-deps base_rmq_ref=master current_rmq_ref=${{ steps.ref.outputs.branch_or_tag_name }}
           echo "Capture versions of the RabbitMQ components used in this workflow..."
           make rabbit-rabbitmq-deps.mk
           mv rabbit-rabbitmq-deps.mk deps/
@@ -48,10 +48,10 @@ jobs:
           path: deps/rabbit-rabbitmq-deps.mk
       - name: CHECK CROSS REFERENCES
         run: |
-          make xref base_rmq_ref=v3.8.x current_rmq_ref=${{ steps.ref.outputs.branch_or_tag_name }}
+          make xref base_rmq_ref=master current_rmq_ref=${{ steps.ref.outputs.branch_or_tag_name }}
       - name: COMPILE FOR TEST
         run: |
-          make test-build base_rmq_ref=v3.8.x current_rmq_ref=${{ steps.ref.outputs.branch_or_tag_name }}
+          make test-build base_rmq_ref=master current_rmq_ref=${{ steps.ref.outputs.branch_or_tag_name }}
       - name: CLONE SECONDARY UMBRELLA
         if: success() && 'oldest' == 'oldest'
         uses: actions/checkout@v2
@@ -62,12 +62,12 @@ jobs:
         if: success() && 'oldest' == 'oldest'
         run: |
           # TODO: Determine the right list of release branches to have
-          # for this v3.8.x.
+          # for this master.
           set -x
           git config --global advice.detachedHead false
           make -C umbrellas/master co # To get RabbitMQ components.
           for branch in v3.8.x v3.7.x; do
-            if test 'v3.8.x' = "$branch"; then
+            if test 'master' = "$branch"; then
               # When testing on the same release branch, we use the oldest
               # tag.
               version=$(git -C umbrellas/master/deps/rabbit tag -l --sort=version:refname $(echo ${branch%.x}).* | \
@@ -82,7 +82,7 @@ jobs:
             umbrella="umbrellas/$branch"
             # We copy the master Umbrella and checkout the appropriate tag.
             cp -a umbrellas/master "$umbrella"
-            git -C "$umbrella" checkout "v3.8.x"
+            git -C "$umbrella" checkout "master"
             make -C "$umbrella" up BRANCH="$version"
             # To remove third-party deps which were checked out when the
             # projects were on the `master` branch. Thus, possibly not the
@@ -125,7 +125,7 @@ jobs:
           ! test -d ebin || touch ebin/*
           branch_or_tag_name=${GITHUB_REF#refs/*/}
           make eunit \
-            base_rmq_ref=v3.8.x \
+            base_rmq_ref=master \
             current_rmq_ref=$branch_or_tag_name \
             FULL= \
             CONCOURSE=1
@@ -155,7 +155,7 @@ jobs:
           branch_or_tag_name=${GITHUB_REF#refs/*/}
           ! test -d ebin || touch ebin/*
           make ct-cluster \
-            base_rmq_ref=v3.8.x \
+            base_rmq_ref=master \
             current_rmq_ref=$branch_or_tag_name \
             FULL= \
             CONCOURSE=1
@@ -172,7 +172,7 @@ jobs:
           branch_or_tag_name=${GITHUB_REF#refs/*/}
           test -d umbrellas/v3.8.x
           make distclean-ct ct-cluster \
-            base_rmq_ref=v3.8.x \
+            base_rmq_ref=master \
             current_rmq_ref=$branch_or_tag_name \
             FULL= \
             CONCOURSE=1 \
@@ -187,7 +187,7 @@ jobs:
           test -d umbrellas/v3.7.x
           # FIXME: a skipped test should cause a failure
           make distclean-ct ct-cluster \
-            base_rmq_ref=v3.8.x \
+            base_rmq_ref=master \
             current_rmq_ref=$branch_or_tag_name \
             FULL= \
             CONCOURSE=1 \
@@ -225,7 +225,7 @@ jobs:
           branch_or_tag_name=${GITHUB_REF#refs/*/}
           echo "::set-output name=branch_or_tag_name::$branch_or_tag_name"
       - name: UPLOAD TO S3
-        if: github.ref == 'refs/heads/v3.8.x'
+        if: github.ref == 'refs/heads/master'
         # https://github.com/marketplace/actions/s3-file-upload
         uses: zdurham/s3-upload-github-action@master
         env:
